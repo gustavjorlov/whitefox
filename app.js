@@ -258,12 +258,19 @@ class Snowflake {
         // Every 12th snowflake is red (gives double jump)
         this.isRed = !this.isGolden && snowflakeCounter % 12 === 0;
         
+        // Points determine size for regular snowflakes (1-4)
+        if (!this.isGolden && !this.isRed) {
+            this.points = Math.floor(Math.random() * 4) + 1;
+            this.size = SNOWFLAKE_SIZE * (this.points / 4);
+        } else {
+            // Golden snowflakes are largest (10 points)
+            this.points = this.isGolden ? 10 : 1;
+            this.size = this.isGolden ? SNOWFLAKE_SIZE : SNOWFLAKE_SIZE * 0.5;
+        }
+        
         // Golden snowflakes fall twice as fast
         const baseSpeed = 1 + Math.random() * 2;
         this.speed = this.isGolden ? baseSpeed * 2 : baseSpeed;
-        
-        // Random size between 40% and 100% of SNOWFLAKE_SIZE
-        this.size = SNOWFLAKE_SIZE * (0.4 + Math.random() * 0.6);
     }
 
     update() {
@@ -627,11 +634,7 @@ function update() {
     snowflakes.forEach(snowflake => {
         snowflake.update();
         if (snowflake.checkCollision(player) && snowflake.active) {
-            if (snowflake.isGolden) {
-                score += 10;
-            } else {
-                score += 1;
-            }
+            score += snowflake.points;
             updateHighScore();
             
             if (snowflake.isRed) {
