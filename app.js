@@ -330,10 +330,87 @@ function update() {
     });
 }
 
+// Create background canvas
+const bgCanvas = document.createElement('canvas');
+bgCanvas.width = CANVAS_WIDTH;
+bgCanvas.height = CANVAS_HEIGHT;
+const bgCtx = bgCanvas.getContext('2d');
+
+// Draw static mountain background
+function createBackground() {
+    // Sky gradient
+    const skyGradient = bgCtx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
+    skyGradient.addColorStop(0, '#87CEEB');  // Light blue at top
+    skyGradient.addColorStop(1, '#E0F6FF');  // Lighter blue at bottom
+    bgCtx.fillStyle = skyGradient;
+    bgCtx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // Mountains
+    const mountainColors = ['#E3E3E3', '#D3D3D3', '#C3C3C3'];
+    const mountainLayers = [
+        { peaks: 3, height: 0.7, peakHeights: [350, 300, 320] },
+        { peaks: 4, height: 0.5, peakHeights: [400, 380, 420, 390] },
+        { peaks: 5, height: 0.3, peakHeights: [450, 470, 440, 460, 455] }
+    ];
+
+    mountainLayers.forEach((layer, i) => {
+        bgCtx.fillStyle = mountainColors[i];
+        bgCtx.beginPath();
+        bgCtx.moveTo(0, CANVAS_HEIGHT);
+
+        const peakWidth = CANVAS_WIDTH / (layer.peaks - 1);
+        for (let p = 0; p < layer.peaks; p++) {
+            const x = p * peakWidth;
+            const peakHeight = layer.peakHeights[p];
+            
+            if (p === 0) {
+                bgCtx.lineTo(x, peakHeight);
+            } else {
+                // Create jagged peaks with fixed positions
+                const steps = 5;
+                const stepWidth = peakWidth / steps;
+                const prevPeakHeight = layer.peakHeights[p - 1];
+                for (let s = 1; s < steps; s++) {
+                    const stepX = x - peakWidth + (s * stepWidth);
+                    const progress = s / steps;
+                    const stepY = prevPeakHeight + (peakHeight - prevPeakHeight) * progress +
+                                Math.sin(progress * Math.PI) * 15;
+                    bgCtx.lineTo(stepX, stepY);
+                }
+                bgCtx.lineTo(x, peakHeight);
+            }
+        }
+        bgCtx.lineTo(CANVAS_WIDTH, CANVAS_HEIGHT);
+        bgCtx.fill();
+    });
+
+    // Add snow caps
+    bgCtx.fillStyle = '#FFFFFF';
+    const snowPositions = [
+        { x: CANVAS_WIDTH * 0.2, y: 320 },
+        { x: CANVAS_WIDTH * 0.5, y: 300 },
+        { x: CANVAS_WIDTH * 0.8, y: 310 }
+    ];
+
+    snowPositions.forEach(pos => {
+        bgCtx.beginPath();
+        bgCtx.moveTo(pos.x - 40, pos.y + 20);
+        bgCtx.lineTo(pos.x, pos.y - 10);
+        bgCtx.lineTo(pos.x + 40, pos.y + 20);
+        bgCtx.fill();
+    });
+}
+
+// Create the static background once
+createBackground();
+
 // Render game objects
 function render() {
     // Clear canvas
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // Draw static background
+    ctx.drawImage(bgCanvas, 0, 0);
 
     // Draw platforms with snow
     platforms.forEach(platform => {
