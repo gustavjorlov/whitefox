@@ -13,9 +13,18 @@ const PARTICLE_COUNT = 50;
 
 // Game state
 let score = 0;
+let highScore = parseInt(localStorage.getItem('highScore')) || 0;
 let wasOnGround = false;
 let isExploding = false;
 let explosionParticles = [];
+
+// Function to update high score
+function updateHighScore() {
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('highScore', highScore.toString());
+    }
+}
 
 // Platform constants
 const PLATFORM_SINK_SPEED = 0.5;
@@ -406,6 +415,7 @@ function update() {
         snowflake.update();
         if (snowflake.checkCollision(player) && snowflake.active) {
             score += 1;
+            updateHighScore();
             snowflake.active = false;
             setTimeout(() => {
                 snowflake.reset();
@@ -497,11 +507,12 @@ function render() {
     // Draw player (fox)
     drawFox(player.x, player.y, player.direction);
 
-    // Draw score
+    // Draw scores
     ctx.fillStyle = '#2c3e50';
     ctx.font = 'bold 24px Arial';
     ctx.textAlign = 'left';
     ctx.fillText(`Score: ${score}`, 20, 40);
+    ctx.fillText(`High Score: ${highScore}`, 20, 70);
 }
 
 // Game loop
