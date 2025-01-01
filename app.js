@@ -114,13 +114,16 @@ class Snowflake {
         snowflakeCounter++;
         this.x = Math.random() * CANVAS_WIDTH;
         this.y = -SNOWFLAKE_SIZE;
-        this.speed = 1 + Math.random() * 2;
         this.active = true;
         
         // Every 20th snowflake is golden (worth 10 points)
         this.isGolden = snowflakeCounter % 20 === 0;
         // Every 12th snowflake is red (gives double jump)
         this.isRed = !this.isGolden && snowflakeCounter % 12 === 0;
+        
+        // Golden snowflakes fall twice as fast
+        const baseSpeed = 1 + Math.random() * 2;
+        this.speed = this.isGolden ? baseSpeed * 2 : baseSpeed;
     }
 
     update() {
