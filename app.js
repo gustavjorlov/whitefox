@@ -17,6 +17,8 @@ let highScore = parseInt(localStorage.getItem('highScore')) || 0;
 let wasOnGround = false;
 let isExploding = false;
 let explosionParticles = [];
+let snowflakeCounter = 0;
+let hasDoubleJump = false;
 
 // Function to update high score
 function updateHighScore() {
@@ -109,10 +111,16 @@ class Snowflake {
     }
 
     reset() {
+        snowflakeCounter++;
         this.x = Math.random() * CANVAS_WIDTH;
         this.y = -SNOWFLAKE_SIZE;
         this.speed = 1 + Math.random() * 2;
         this.active = true;
+        
+        // Every 20th snowflake is golden (worth 10 points)
+        this.isGolden = snowflakeCounter % 20 === 0;
+        // Every 12th snowflake is red (gives double jump)
+        this.isRed = !this.isGolden && snowflakeCounter % 12 === 0;
     }
 
     update() {
@@ -136,8 +144,17 @@ class Snowflake {
     draw(ctx) {
         if (!this.active) return;
         
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 1;
+        // Set color based on type
+        if (this.isGolden) {
+            ctx.strokeStyle = '#FFD700';  // Gold
+            ctx.lineWidth = 2;
+        } else if (this.isRed) {
+            ctx.strokeStyle = '#FF0000';  // Red
+            ctx.lineWidth = 2;
+        } else {
+            ctx.strokeStyle = '#fff';     // Regular white
+            ctx.lineWidth = 1;
+        }
         
         // Draw 6 arms of the snowflake
         for (let i = 0; i < 6; i++) {
@@ -170,7 +187,7 @@ class Snowflake {
         // Center dot
         ctx.beginPath();
         ctx.arc(this.x, this.y, SNOWFLAKE_SIZE * 0.1, 0, Math.PI * 2);
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle = this.isGolden ? '#FFD700' : (this.isRed ? '#FF0000' : '#fff');
         ctx.fill();
     }
 }
@@ -363,6 +380,7 @@ function update() {
             const spawnPlatform = findRandomPlatform();
             const newPosition = spawnPlayerAbovePlatform(spawnPlatform);
             Object.assign(player, newPosition);
+            hasDoubleJump = false;  // Reset double jump on death
         }
         return;
     }
@@ -383,8 +401,9 @@ function update() {
 
     // Jumping
     if (keys.ArrowUp && !player.isJumping) {
-        player.velocityY = JUMP_FORCE;
+        player.velocityY = hasDoubleJump ? JUMP_FORCE * 2 : JUMP_FORCE;
         player.isJumping = true;
+        hasDoubleJump = false;  // Use up the double jump
     }
 
     // Update position
@@ -405,6 +424,7 @@ function update() {
             wasOnGround = true;
             player.visible = false;
             createExplosion(player.x, player.y);
+            hasDoubleJump = false;  // Reset double jump on death
         }
     } else {
         wasOnGround = false;
@@ -414,8 +434,17 @@ function update() {
     snowflakes.forEach(snowflake => {
         snowflake.update();
         if (snowflake.checkCollision(player) && snowflake.active) {
-            score += 1;
+            if (snowflake.isGolden) {
+                score += 10;
+            } else {
+                score += 1;
+            }
             updateHighScore();
+            
+            if (snowflake.isRed) {
+                hasDoubleJump = true;
+            }
+            
             snowflake.active = false;
             setTimeout(() => {
                 snowflake.reset();
@@ -507,12 +536,16 @@ function render() {
     // Draw player (fox)
     drawFox(player.x, player.y, player.direction);
 
-    // Draw scores
+    // Draw scores and power-up indicator
     ctx.fillStyle = '#2c3e50';
     ctx.font = 'bold 24px Arial';
     ctx.textAlign = 'left';
     ctx.fillText(`Score: ${score}`, 20, 40);
     ctx.fillText(`High Score: ${highScore}`, 20, 70);
+    if (hasDoubleJump) {
+        ctx.fillStyle = '#FF0000';
+        ctx.fillText('Double Jump Ready!', 20, 100);
+    }
 }
 
 // Game loop
