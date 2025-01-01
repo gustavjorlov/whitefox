@@ -1,3 +1,40 @@
+// Perlin noise implementation
+class PerlinNoise {
+    constructor() {
+        this.permutation = new Array(256).fill(0).map((_, i) => i);
+        for (let i = 255; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [this.permutation[i], this.permutation[j]] = [this.permutation[j], this.permutation[i]];
+        }
+        this.p = [...this.permutation, ...this.permutation];
+    }
+
+    fade(t) {
+        return t * t * t * (t * (t * 6 - 15) + 10);
+    }
+
+    lerp(t, a, b) {
+        return a + t * (b - a);
+    }
+
+    grad(hash, x) {
+        const h = hash & 15;
+        const grad = 1 + (h & 7);
+        return (h & 8 ? -grad : grad) * x;
+    }
+
+    noise(x) {
+        const X = Math.floor(x) & 255;
+        x -= Math.floor(x);
+        const u = this.fade(x);
+        
+        const a = this.p[X];
+        const b = this.p[X + 1];
+        
+        return this.lerp(u, this.grad(a, x), this.grad(b, x - 1)) * 0.5 + 0.5;
+    }
+}
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -104,9 +141,14 @@ class Particle {
     }
 }
 
+// Initialize Perlin noise
+const perlinNoise = new PerlinNoise();
+let noiseOffset = 0;
+
 // Snowflakes
 class Snowflake {
     constructor() {
+        this.timeOffset = Math.random() * 1000; // Unique time offset for each snowflake
         this.reset();
     }
 
@@ -124,10 +166,26 @@ class Snowflake {
         // Golden snowflakes fall twice as fast
         const baseSpeed = 1 + Math.random() * 2;
         this.speed = this.isGolden ? baseSpeed * 2 : baseSpeed;
+        
+        // Random size between 40% and 100% of SNOWFLAKE_SIZE
+        this.size = SNOWFLAKE_SIZE * (0.4 + Math.random() * 0.6);
     }
 
     update() {
         this.y += this.speed;
+        
+        // Use Perlin noise for horizontal movement (reduced by 80%)
+        const noiseValue = perlinNoise.noise((noiseOffset + this.timeOffset) * 0.01);
+        const horizontalSpeed = (noiseValue - 0.5) * 3 * 0.2; // Reduced horizontal movement
+        this.x += horizontalSpeed;
+        
+        // Wrap around horizontally
+        if (this.x < -SNOWFLAKE_SIZE) {
+            this.x = CANVAS_WIDTH;
+        } else if (this.x > CANVAS_WIDTH + SNOWFLAKE_SIZE) {
+            this.x = -SNOWFLAKE_SIZE;
+        }
+        
         if (this.y > CANVAS_HEIGHT) {
             this.reset();
         }
@@ -169,19 +227,19 @@ class Snowflake {
             // Main arm
             ctx.beginPath();
             ctx.moveTo(0, 0);
-            ctx.lineTo(SNOWFLAKE_SIZE, 0);
+            ctx.lineTo(this.size, 0);
             
             // Branch 1 (at 60% of main arm)
-            ctx.moveTo(SNOWFLAKE_SIZE * 0.6, 0);
-            ctx.lineTo(SNOWFLAKE_SIZE * 0.8, SNOWFLAKE_SIZE * 0.2);
-            ctx.moveTo(SNOWFLAKE_SIZE * 0.6, 0);
-            ctx.lineTo(SNOWFLAKE_SIZE * 0.8, -SNOWFLAKE_SIZE * 0.2);
+            ctx.moveTo(this.size * 0.6, 0);
+            ctx.lineTo(this.size * 0.8, this.size * 0.2);
+            ctx.moveTo(this.size * 0.6, 0);
+            ctx.lineTo(this.size * 0.8, -this.size * 0.2);
             
             // Branch 2 (at 30% of main arm)
-            ctx.moveTo(SNOWFLAKE_SIZE * 0.3, 0);
-            ctx.lineTo(SNOWFLAKE_SIZE * 0.5, SNOWFLAKE_SIZE * 0.15);
-            ctx.moveTo(SNOWFLAKE_SIZE * 0.3, 0);
-            ctx.lineTo(SNOWFLAKE_SIZE * 0.5, -SNOWFLAKE_SIZE * 0.15);
+            ctx.moveTo(this.size * 0.3, 0);
+            ctx.lineTo(this.size * 0.5, this.size * 0.15);
+            ctx.moveTo(this.size * 0.3, 0);
+            ctx.lineTo(this.size * 0.5, -this.size * 0.15);
             
             ctx.stroke();
             ctx.restore();
@@ -189,7 +247,7 @@ class Snowflake {
         
         // Center dot
         ctx.beginPath();
-        ctx.arc(this.x, this.y, SNOWFLAKE_SIZE * 0.1, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, this.size * 0.1, 0, Math.PI * 2);
         ctx.fillStyle = this.isGolden ? '#FFD700' : (this.isRed ? '#FF0000' : '#fff');
         ctx.fill();
     }
@@ -553,6 +611,7 @@ function render() {
 
 // Game loop
 function gameLoop() {
+    noiseOffset++; // Increment noise offset for continuous movement
     update();
     render();
     requestAnimationFrame(gameLoop);
