@@ -17,6 +17,47 @@ let wasOnGround = false;
 let isExploding = false;
 let explosionParticles = [];
 
+// Platform constants
+const PLATFORM_SINK_SPEED = 0.5;
+const MIN_PLATFORM_WIDTH = 120;
+const MAX_PLATFORM_WIDTH = 200;
+const PLATFORM_HEIGHT = 20;
+const MIN_PLATFORM_SPACING = 100;
+
+// Create initial platforms
+let platforms = [
+    { x: CANVAS_WIDTH / 4 - 50, y: CANVAS_HEIGHT * 0.75, width: 200, height: PLATFORM_HEIGHT },
+    { x: CANVAS_WIDTH / 2 + 100, y: CANVAS_HEIGHT * 0.6, width: 150, height: PLATFORM_HEIGHT },
+    { x: CANVAS_WIDTH / 8, y: CANVAS_HEIGHT * 0.45, width: 120, height: PLATFORM_HEIGHT },
+    { x: CANVAS_WIDTH / 2 - 50, y: CANVAS_HEIGHT * 0.3, width: 180, height: PLATFORM_HEIGHT },
+    { x: CANVAS_WIDTH * 0.75, y: CANVAS_HEIGHT * 0.4, width: 160, height: PLATFORM_HEIGHT },
+    { x: CANVAS_WIDTH * 0.1, y: CANVAS_HEIGHT * 0.85, width: 140, height: PLATFORM_HEIGHT }
+];
+
+// Function to find random platform
+function findRandomPlatform() {
+    return platforms[Math.floor(Math.random() * platforms.length)];
+}
+
+// Function to position player above platform
+function spawnPlayerAbovePlatform(platform) {
+    const randomOffset = Math.random() * (platform.width - 40); // Random position along platform
+    return {
+        x: platform.x + randomOffset,
+        y: platform.y - 45,
+        width: 40,
+        height: 40,
+        velocityX: 0,
+        velocityY: 0,
+        isJumping: false,
+        visible: true,
+        direction: Math.random() < 0.5 ? 'left' : 'right'
+    };
+}
+
+// Player object - spawn above random platform
+const player = spawnPlayerAbovePlatform(findRandomPlatform());
+
 // Particle class for explosion effect
 class Particle {
     constructor(x, y) {
@@ -139,36 +180,6 @@ const snowflakes = Array.from({ length: SNOWFLAKE_COUNT }, () => new Snowflake()
 canvas.width = CANVAS_WIDTH;
 canvas.height = CANVAS_HEIGHT;
 
-// Player object
-const player = {
-    x: CANVAS_WIDTH / 4,
-    y: CANVAS_HEIGHT / 2,
-    width: 40,
-    height: 40,
-    velocityX: 0,
-    velocityY: 0,
-    isJumping: false,
-    visible: true,
-    direction: 'right'
-};
-
-// Platform constants
-const PLATFORM_SINK_SPEED = 0.5;
-const MIN_PLATFORM_WIDTH = 120;
-const MAX_PLATFORM_WIDTH = 200;
-const PLATFORM_HEIGHT = 20;
-const MIN_PLATFORM_SPACING = 100;
-
-// Create initial platforms
-let platforms = [
-    { x: CANVAS_WIDTH / 4 - 50, y: CANVAS_HEIGHT * 0.75, width: 200, height: PLATFORM_HEIGHT },
-    { x: CANVAS_WIDTH / 2 + 100, y: CANVAS_HEIGHT * 0.6, width: 150, height: PLATFORM_HEIGHT },
-    { x: CANVAS_WIDTH / 8, y: CANVAS_HEIGHT * 0.45, width: 120, height: PLATFORM_HEIGHT },
-    { x: CANVAS_WIDTH / 2 - 50, y: CANVAS_HEIGHT * 0.3, width: 180, height: PLATFORM_HEIGHT },
-    { x: CANVAS_WIDTH * 0.75, y: CANVAS_HEIGHT * 0.4, width: 160, height: PLATFORM_HEIGHT },
-    { x: CANVAS_WIDTH * 0.1, y: CANVAS_HEIGHT * 0.85, width: 140, height: PLATFORM_HEIGHT }
-];
-
 // Function to generate a new platform
 function generatePlatform() {
     const width = MIN_PLATFORM_WIDTH + Math.random() * (MAX_PLATFORM_WIDTH - MIN_PLATFORM_WIDTH);
@@ -210,27 +221,31 @@ function drawFox(x, y, direction) {
     
     const pixelSize = player.width / 16;
     const pixels = [
+        "0000011111100000",
         "0000111111110000",
         "0001111111111000",
         "0011111111111100",
-        "0111111111111110",
         "0111122112211110",
-        "0111112222111110",
-        "0011111111111100",
-        "0001111111111000",
-        "0011111111111100",
-        "0111111111111110",
         "0111111111111110",
         "0011111111111100",
         "0001111111111000",
-        "0001111111111000",
-        "0000111001110000",
-        "0000110000110000"
+        "0001133333311000",
+        "0001333333331000",
+        "0013333333333100",
+        "0133333333333310",
+        "0011444444411000",
+        "0000444444440000",
+        "0000555555550000",
+        "0000066666600000"
     ];
 
     const colors = {
-        '1': '#ffffff', // White for body
-        '2': '#000000'  // Black for eyes
+        '1': '#ffffff', // White for body/head
+        '2': '#000000', // Black for eyes
+        '3': '#ff0000', // Red for jacket
+        '4': '#0000ff', // Blue for skis
+        '5': '#444444', // Dark gray for ski poles
+        '6': '#888888'  // Light gray for ski tips
     };
 
     pixels.forEach((row, i) => {
@@ -295,26 +310,32 @@ window.addEventListener('keyup', (e) => {
 // Check collision between player and platforms
 function checkPlatformCollisions() {
     let onPlatform = false;
-    const wasAbove = player.y < player.y + player.velocityY;
+    const nextY = player.y + player.velocityY;
+    const wasAbove = player.y < nextY;
 
     for (const platform of platforms) {
+        // Horizontal overlap
         if (player.x < platform.x + platform.width &&
             player.x + player.width > platform.x) {
             
             // Coming from above
-            if (wasAbove &&
-                player.y + player.height > platform.y &&
-                player.y + player.height - player.velocityY <= platform.y) {
-                player.y = platform.y - player.height;
-                player.velocityY = 0;
-                onPlatform = true;
+            if (wasAbove) {
+                const bottomCollision = player.y + player.height <= platform.y &&
+                                      nextY + player.height >= platform.y;
+                if (bottomCollision) {
+                    player.y = platform.y - player.height;
+                    player.velocityY = 0;
+                    onPlatform = true;
+                }
             }
             // Coming from below
-            else if (!wasAbove &&
-                     player.y < platform.y + platform.height &&
-                     player.y - player.velocityY >= platform.y + platform.height) {
-                player.y = platform.y + platform.height;
-                player.velocityY = 0;
+            else {
+                const topCollision = player.y >= platform.y + platform.height &&
+                                   nextY <= platform.y + platform.height;
+                if (topCollision) {
+                    player.y = platform.y + platform.height;
+                    player.velocityY = 0;
+                }
             }
         }
     }
@@ -330,10 +351,9 @@ function update() {
         if (explosionParticles.length === 0) {
             isExploding = false;
             player.visible = true;
-            player.x = CANVAS_WIDTH / 4;
-            player.y = CANVAS_HEIGHT / 2;
-            player.velocityX = 0;
-            player.velocityY = 0;
+            const spawnPlatform = findRandomPlatform();
+            const newPosition = spawnPlayerAbovePlatform(spawnPlatform);
+            Object.assign(player, newPosition);
         }
         return;
     }
