@@ -86,19 +86,41 @@ class Snowflake {
     draw(ctx) {
         if (!this.active) return;
         
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        for (let i = 0; i < 8; i++) {
-            const angle = (i / 8) * Math.PI * 2;
-            const x = this.x + Math.cos(angle) * SNOWFLAKE_SIZE/2;
-            const y = this.y + Math.sin(angle) * SNOWFLAKE_SIZE/2;
-            if (i === 0) {
-                ctx.moveTo(x, y);
-            } else {
-                ctx.lineTo(x, y);
-            }
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        
+        // Draw 6 arms of the snowflake
+        for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2;
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(angle);
+            
+            // Main arm
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(SNOWFLAKE_SIZE, 0);
+            
+            // Branch 1 (at 60% of main arm)
+            ctx.moveTo(SNOWFLAKE_SIZE * 0.6, 0);
+            ctx.lineTo(SNOWFLAKE_SIZE * 0.8, SNOWFLAKE_SIZE * 0.2);
+            ctx.moveTo(SNOWFLAKE_SIZE * 0.6, 0);
+            ctx.lineTo(SNOWFLAKE_SIZE * 0.8, -SNOWFLAKE_SIZE * 0.2);
+            
+            // Branch 2 (at 30% of main arm)
+            ctx.moveTo(SNOWFLAKE_SIZE * 0.3, 0);
+            ctx.lineTo(SNOWFLAKE_SIZE * 0.5, SNOWFLAKE_SIZE * 0.15);
+            ctx.moveTo(SNOWFLAKE_SIZE * 0.3, 0);
+            ctx.lineTo(SNOWFLAKE_SIZE * 0.5, -SNOWFLAKE_SIZE * 0.15);
+            
+            ctx.stroke();
+            ctx.restore();
         }
-        ctx.closePath();
+        
+        // Center dot
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, SNOWFLAKE_SIZE * 0.1, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
         ctx.fill();
     }
 }
@@ -130,15 +152,57 @@ const player = {
     direction: 'right'
 };
 
-// Platforms
-const platforms = [
-    { x: CANVAS_WIDTH / 4 - 50, y: CANVAS_HEIGHT * 0.75, width: 200, height: 20 },
-    { x: CANVAS_WIDTH / 2 + 100, y: CANVAS_HEIGHT * 0.6, width: 150, height: 20 },
-    { x: CANVAS_WIDTH / 8, y: CANVAS_HEIGHT * 0.45, width: 120, height: 20 },
-    { x: CANVAS_WIDTH / 2 - 50, y: CANVAS_HEIGHT * 0.3, width: 180, height: 20 },
-    { x: CANVAS_WIDTH * 0.75, y: CANVAS_HEIGHT * 0.4, width: 160, height: 20 },
-    { x: CANVAS_WIDTH * 0.1, y: CANVAS_HEIGHT * 0.85, width: 140, height: 20 }
+// Platform constants
+const PLATFORM_SINK_SPEED = 0.5;
+const MIN_PLATFORM_WIDTH = 120;
+const MAX_PLATFORM_WIDTH = 200;
+const PLATFORM_HEIGHT = 20;
+const MIN_PLATFORM_SPACING = 100;
+
+// Create initial platforms
+let platforms = [
+    { x: CANVAS_WIDTH / 4 - 50, y: CANVAS_HEIGHT * 0.75, width: 200, height: PLATFORM_HEIGHT },
+    { x: CANVAS_WIDTH / 2 + 100, y: CANVAS_HEIGHT * 0.6, width: 150, height: PLATFORM_HEIGHT },
+    { x: CANVAS_WIDTH / 8, y: CANVAS_HEIGHT * 0.45, width: 120, height: PLATFORM_HEIGHT },
+    { x: CANVAS_WIDTH / 2 - 50, y: CANVAS_HEIGHT * 0.3, width: 180, height: PLATFORM_HEIGHT },
+    { x: CANVAS_WIDTH * 0.75, y: CANVAS_HEIGHT * 0.4, width: 160, height: PLATFORM_HEIGHT },
+    { x: CANVAS_WIDTH * 0.1, y: CANVAS_HEIGHT * 0.85, width: 140, height: PLATFORM_HEIGHT }
 ];
+
+// Function to generate a new platform
+function generatePlatform() {
+    const width = MIN_PLATFORM_WIDTH + Math.random() * (MAX_PLATFORM_WIDTH - MIN_PLATFORM_WIDTH);
+    const x = Math.random() * (CANVAS_WIDTH - width);
+    return {
+        x,
+        y: -PLATFORM_HEIGHT,
+        width,
+        height: PLATFORM_HEIGHT
+    };
+}
+
+// Function to check if we need a new platform
+function needNewPlatform() {
+    const highestPlatform = platforms.reduce((highest, platform) => 
+        platform.y < highest ? platform.y : highest, CANVAS_HEIGHT);
+    return highestPlatform > MIN_PLATFORM_SPACING;
+}
+
+// Function to update platforms
+function updatePlatforms() {
+    // Move platforms down
+    platforms.forEach(platform => {
+        platform.y += PLATFORM_SINK_SPEED;
+    });
+
+    // Remove platforms that are off screen
+    platforms = platforms.filter(platform => platform.y < CANVAS_HEIGHT + PLATFORM_HEIGHT);
+
+    // Add new platform if needed
+    if (needNewPlatform()) {
+        platforms.push(generatePlatform());
+    }
+}
 
 // Fox pixel art (16x16 grid)
 function drawFox(x, y, direction) {
@@ -328,6 +392,9 @@ function update() {
             }, 1000);
         }
     });
+
+    // Update platforms
+    updatePlatforms();
 }
 
 // Create background canvas
@@ -381,22 +448,6 @@ function createBackground() {
             }
         }
         bgCtx.lineTo(CANVAS_WIDTH, CANVAS_HEIGHT);
-        bgCtx.fill();
-    });
-
-    // Add snow caps
-    bgCtx.fillStyle = '#FFFFFF';
-    const snowPositions = [
-        { x: CANVAS_WIDTH * 0.2, y: 320 },
-        { x: CANVAS_WIDTH * 0.5, y: 300 },
-        { x: CANVAS_WIDTH * 0.8, y: 310 }
-    ];
-
-    snowPositions.forEach(pos => {
-        bgCtx.beginPath();
-        bgCtx.moveTo(pos.x - 40, pos.y + 20);
-        bgCtx.lineTo(pos.x, pos.y - 10);
-        bgCtx.lineTo(pos.x + 40, pos.y + 20);
         bgCtx.fill();
     });
 }
