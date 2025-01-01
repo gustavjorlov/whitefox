@@ -47,6 +47,10 @@ const MOVEMENT_SPEED = 5;
 const SNOWFLAKE_COUNT = 15;
 const SNOWFLAKE_SIZE = 8;
 const PARTICLE_COUNT = 50;
+const BIRD_MIN_INTERVAL = 1500; // 15 seconds
+const BIRD_MAX_INTERVAL = 3000; // 30 seconds
+const BIRD_SPEED = 3.3;
+const BIRD_Y_RANGE = 150; // Maximum Y position from top
 
 // Game state
 let score = 0;
@@ -56,6 +60,122 @@ let isExploding = false;
 let explosionParticles = [];
 let snowflakeCounter = 0;
 let hasDoubleJump = false;
+let nextBirdSpawn = Date.now() + Math.random() * (BIRD_MAX_INTERVAL - BIRD_MIN_INTERVAL) + BIRD_MIN_INTERVAL;
+let activeBird = null;
+
+// Bird class
+class Bird {
+    constructor() {
+        this.width = 48;
+        this.height = 36;
+        this.direction = Math.random() < 0.5 ? 'right' : 'left';
+        this.x = this.direction === 'right' ? -this.width : CANVAS_WIDTH + this.width;
+        this.y = Math.random() * BIRD_Y_RANGE + 50;
+        this.frame = 0;
+        this.frameCounter = 0;
+    }
+
+    update() {
+        // Update position
+        if (this.direction === 'right') {
+            this.x += BIRD_SPEED;
+        } else {
+            this.x -= BIRD_SPEED;
+        }
+
+        // Animate wings every 8 frames
+        this.frameCounter++;
+        if (this.frameCounter >= 8) {
+            this.frame = (this.frame + 1) % 3;
+            this.frameCounter = 0;
+        }
+
+        // Check if bird has left the screen
+        return this.x > CANVAS_WIDTH || this.x < -this.width;
+    }
+
+    draw(ctx) {
+        const pixels = [
+            [
+                "000000111111111000000",
+                "000011333333331100000",
+                "000133333333333311000",
+                "001333333333333331100",
+                "013333322222333333110",
+                "133333322222333333331",
+                "133333333333333333331",
+                "133333333333333333331",
+                "013333333333333333310",
+                "001334444444444331100",
+                "000133444444443311000",
+                "000013344444433110000",
+                "000001133333311100000",
+                "000000111555111000000",
+                "000000015555100000000"
+            ],
+            [
+                "000000111111111000000",
+                "000011333333331100000",
+                "000133333333333311000",
+                "001333333333333331100",
+                "013333322222333333110",
+                "133333322222333333331",
+                "133333333333333333331",
+                "133333333333333333331",
+                "013333333333333333310",
+                "001333333333333331100",
+                "000133444444443311000",
+                "000013344444433110000",
+                "000001133333311100000",
+                "000000111555111000000",
+                "000000015555100000000"
+            ],
+            [
+                "000000111111111000000",
+                "000011333333331100000",
+                "000133333333333311000",
+                "001333333333333331100",
+                "013333322222333333110",
+                "133333322222333333331",
+                "133333333333333333331",
+                "133333333333333333331",
+                "013333333333333333310",
+                "001333333333333331100",
+                "000133333333333311000",
+                "000013344444433110000",
+                "000001133333311100000",
+                "000000111555111000000",
+                "000000015555100000000"
+            ]
+        ];
+
+        const colors = {
+            '1': '#2c3e50', // Dark blue-gray for outline
+            '2': '#000000', // Black for eye
+            '3': '#34495e', // Lighter blue-gray for body
+            '4': '#7f8c8d', // Light gray for wing detail
+            '5': '#e67e22'  // Orange for beak and tail
+        };
+
+        const pixelSize = this.width / pixels[0][0].length;
+        const currentFrame = pixels[this.frame];
+
+        currentFrame.forEach((row, i) => {
+            const rowPixels = this.direction === 'left' ? row.split('').reverse() : row.split('');
+            rowPixels.forEach((pixel, j) => {
+                if (pixel !== '0') {
+                    ctx.fillStyle = colors[pixel];
+                    ctx.fillRect(
+                        this.x + j * pixelSize,
+                        this.y + i * pixelSize,
+                        pixelSize,
+                        pixelSize
+                    );
+                }
+            });
+        });
+    }
+}
 
 // Function to update high score
 function updateHighScore() {
@@ -431,6 +551,20 @@ function checkPlatformCollisions() {
 
 // Update game state
 function update() {
+    // Check if it's time to spawn a new bird
+    if (!activeBird && Date.now() >= nextBirdSpawn) {
+        activeBird = new Bird();
+        // Set next spawn time
+        nextBirdSpawn = Date.now() + Math.random() * (BIRD_MAX_INTERVAL - BIRD_MIN_INTERVAL) + BIRD_MIN_INTERVAL;
+    }
+
+    // Update active bird
+    if (activeBird) {
+        if (activeBird.update()) {
+            activeBird = null;
+        }
+    }
+
     if (isExploding) {
         explosionParticles = explosionParticles.filter(particle => particle.life > 0);
         explosionParticles.forEach(particle => particle.update());
@@ -606,6 +740,11 @@ function render() {
     if (hasDoubleJump) {
         ctx.fillStyle = '#FF0000';
         ctx.fillText('Double Jump Ready!', 20, 100);
+    }
+
+    // Draw bird if active
+    if (activeBird) {
+        activeBird.draw(ctx);
     }
 }
 
