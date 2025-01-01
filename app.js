@@ -47,10 +47,10 @@ const MOVEMENT_SPEED = 5;
 const SNOWFLAKE_COUNT = 15;
 const SNOWFLAKE_SIZE = 8;
 const PARTICLE_COUNT = 50;
-const BIRD_MIN_INTERVAL = 1500; // 15 seconds
-const BIRD_MAX_INTERVAL = 3000; // 30 seconds
-const BIRD_SPEED = 3.3;
-const BIRD_Y_RANGE = 150; // Maximum Y position from top
+const AIRPLANE_MIN_INTERVAL = 5000; // 5 seconds
+const AIRPLANE_MAX_INTERVAL = 10000; // 10 seconds
+const AIRPLANE_SPEED = 2.3;
+const AIRPLANE_Y_RANGE = 150; // Maximum Y position from top
 
 // Game state
 let score = 0;
@@ -60,17 +60,17 @@ let isExploding = false;
 let explosionParticles = [];
 let snowflakeCounter = 0;
 let hasDoubleJump = false;
-let nextBirdSpawn = Date.now() + Math.random() * (BIRD_MAX_INTERVAL - BIRD_MIN_INTERVAL) + BIRD_MIN_INTERVAL;
-let activeBird = null;
+let nextAirplaneSpawn = Date.now() + Math.random() * (AIRPLANE_MAX_INTERVAL - AIRPLANE_MIN_INTERVAL) + AIRPLANE_MIN_INTERVAL;
+let activeAirplane = null;
 
-// Bird class
-class Bird {
+// Airplane class
+class Airplane {
     constructor() {
         this.width = 48;
         this.height = 36;
         this.direction = Math.random() < 0.5 ? 'right' : 'left';
         this.x = this.direction === 'right' ? -this.width : CANVAS_WIDTH + this.width;
-        this.y = Math.random() * BIRD_Y_RANGE + 50;
+        this.y = Math.random() * AIRPLANE_Y_RANGE + 50;
         this.frame = 0;
         this.frameCounter = 0;
     }
@@ -78,9 +78,9 @@ class Bird {
     update() {
         // Update position
         if (this.direction === 'right') {
-            this.x += BIRD_SPEED;
+            this.x += AIRPLANE_SPEED;
         } else {
-            this.x -= BIRD_SPEED;
+            this.x -= AIRPLANE_SPEED;
         }
 
         // Animate wings every 8 frames
@@ -97,64 +97,39 @@ class Bird {
     draw(ctx) {
         const pixels = [
             [
-                "000000111111111000000",
-                "000011333333331100000",
-                "000133333333333311000",
-                "001333333333333331100",
-                "013333322222333333110",
-                "133333322222333333331",
-                "133333333333333333331",
-                "133333333333333333331",
-                "013333333333333333310",
-                "001334444444444331100",
-                "000133444444443311000",
-                "000013344444433110000",
-                "000001133333311100000",
-                "000000111555111000000",
-                "000000015555100000000"
+                "000001111111100000",
+                "000011111111110000",
+                "000111111111111000",
+                "001111111111111100",
+                "011111111111111110",
+                "111111111111111111",
+                "000011111111110000",
+                "000001111111100000"
             ],
             [
-                "000000111111111000000",
-                "000011333333331100000",
-                "000133333333333311000",
-                "001333333333333331100",
-                "013333322222333333110",
-                "133333322222333333331",
-                "133333333333333333331",
-                "133333333333333333331",
-                "013333333333333333310",
-                "001333333333333331100",
-                "000133444444443311000",
-                "000013344444433110000",
-                "000001133333311100000",
-                "000000111555111000000",
-                "000000015555100000000"
+                "000001111111100000",
+                "000011111111110000",
+                "111111111111111111",
+                "001111111111111100",
+                "011111111111111110",
+                "000111111111111000",
+                "000011111111110000",
+                "000001111111100000"
             ],
             [
-                "000000111111111000000",
-                "000011333333331100000",
-                "000133333333333311000",
-                "001333333333333331100",
-                "013333322222333333110",
-                "133333322222333333331",
-                "133333333333333333331",
-                "133333333333333333331",
-                "013333333333333333310",
-                "001333333333333331100",
-                "000133333333333311000",
-                "000013344444433110000",
-                "000001133333311100000",
-                "000000111555111000000",
-                "000000015555100000000"
+                "000001111111100000",
+                "111111111111111111",
+                "000111111111111000",
+                "001111111111111100",
+                "011111111111111110",
+                "000111111111111000",
+                "000011111111110000",
+                "000001111111100000"
             ]
         ];
 
         const colors = {
-            '1': '#2c3e50', // Dark blue-gray for outline
-            '2': '#000000', // Black for eye
-            '3': '#34495e', // Lighter blue-gray for body
-            '4': '#7f8c8d', // Light gray for wing detail
-            '5': '#e67e22'  // Orange for beak and tail
+            '1': '#95a5a6'  // Silver/metallic color for airplane
         };
 
         const pixelSize = this.width / pixels[0][0].length;
@@ -187,19 +162,19 @@ function updateHighScore() {
 
 // Platform constants
 const PLATFORM_SINK_SPEED = 0.5;
-const MIN_PLATFORM_WIDTH = 120;
-const MAX_PLATFORM_WIDTH = 200;
+const MIN_PLATFORM_WIDTH = 60;  // Halved
+const MAX_PLATFORM_WIDTH = 100; // Halved
 const PLATFORM_HEIGHT = 20;
 const MIN_PLATFORM_SPACING = 100;
 
 // Create initial platforms
 let platforms = [
-    { x: CANVAS_WIDTH / 4 - 50, y: CANVAS_HEIGHT * 0.75, width: 200, height: PLATFORM_HEIGHT },
-    { x: CANVAS_WIDTH / 2 + 100, y: CANVAS_HEIGHT * 0.6, width: 150, height: PLATFORM_HEIGHT },
-    { x: CANVAS_WIDTH / 8, y: CANVAS_HEIGHT * 0.45, width: 120, height: PLATFORM_HEIGHT },
-    { x: CANVAS_WIDTH / 2 - 50, y: CANVAS_HEIGHT * 0.3, width: 180, height: PLATFORM_HEIGHT },
-    { x: CANVAS_WIDTH * 0.75, y: CANVAS_HEIGHT * 0.4, width: 160, height: PLATFORM_HEIGHT },
-    { x: CANVAS_WIDTH * 0.1, y: CANVAS_HEIGHT * 0.85, width: 140, height: PLATFORM_HEIGHT }
+    { x: CANVAS_WIDTH / 4 - 25, y: CANVAS_HEIGHT * 0.75, width: 100, height: PLATFORM_HEIGHT },
+    { x: CANVAS_WIDTH / 2 + 50, y: CANVAS_HEIGHT * 0.6, width: 75, height: PLATFORM_HEIGHT },
+    { x: CANVAS_WIDTH / 8, y: CANVAS_HEIGHT * 0.45, width: 60, height: PLATFORM_HEIGHT },
+    { x: CANVAS_WIDTH / 2 - 25, y: CANVAS_HEIGHT * 0.3, width: 90, height: PLATFORM_HEIGHT },
+    { x: CANVAS_WIDTH * 0.75, y: CANVAS_HEIGHT * 0.4, width: 80, height: PLATFORM_HEIGHT },
+    { x: CANVAS_WIDTH * 0.1, y: CANVAS_HEIGHT * 0.85, width: 70, height: PLATFORM_HEIGHT }
 ];
 
 // Function to find random platform
@@ -551,17 +526,40 @@ function checkPlatformCollisions() {
 
 // Update game state
 function update() {
-    // Check if it's time to spawn a new bird
-    if (!activeBird && Date.now() >= nextBirdSpawn) {
-        activeBird = new Bird();
+    // Check if it's time to spawn a new airplane
+    if (!activeAirplane && Date.now() >= nextAirplaneSpawn) {
+        activeAirplane = new Airplane();
         // Set next spawn time
-        nextBirdSpawn = Date.now() + Math.random() * (BIRD_MAX_INTERVAL - BIRD_MIN_INTERVAL) + BIRD_MIN_INTERVAL;
+        nextAirplaneSpawn = Date.now() + Math.random() * (AIRPLANE_MAX_INTERVAL - AIRPLANE_MIN_INTERVAL) + AIRPLANE_MIN_INTERVAL;
     }
 
-    // Update active bird
-    if (activeBird) {
-        if (activeBird.update()) {
-            activeBird = null;
+    // Update active airplane and check collision with player
+    if (activeAirplane) {
+        if (activeAirplane.update()) {
+            activeAirplane = null;
+        } else if (player.visible && // Check collision only if player is visible
+            player.x < activeAirplane.x + activeAirplane.width &&
+            player.x + player.width > activeAirplane.x &&
+            player.y < activeAirplane.y + activeAirplane.height &&
+            player.y + player.height > activeAirplane.y) {
+            
+            // Spawn an extra platform at a random height between the highest and lowest platforms
+            const lowestY = Math.max(...platforms.map(p => p.y));
+            const highestY = Math.min(...platforms.map(p => p.y));
+            const randomY = highestY + Math.random() * (lowestY - highestY);
+            
+            // Create new platform
+            const width = MIN_PLATFORM_WIDTH + Math.random() * (MAX_PLATFORM_WIDTH - MIN_PLATFORM_WIDTH);
+            const x = Math.random() * (CANVAS_WIDTH - width);
+            platforms.push({
+                x,
+                y: randomY,
+                width,
+                height: PLATFORM_HEIGHT
+            });
+            
+            // Remove the airplane
+            activeAirplane = null;
         }
     }
 
@@ -742,9 +740,9 @@ function render() {
         ctx.fillText('Double Jump Ready!', 20, 100);
     }
 
-    // Draw bird if active
-    if (activeBird) {
-        activeBird.draw(ctx);
+    // Draw airplane if active
+    if (activeAirplane) {
+        activeAirplane.draw(ctx);
     }
 }
 
